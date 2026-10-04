@@ -19,3 +19,9 @@ export const DEFAULT_SETTINGS = {
   accent: '#7a1f2b',
   currency: '₽',
 };
+
+// Список фото рецепта (поддерживает старое поле imageUrl)
+export function getImages(r) {
+  if (Array.isArray(r?.images) && r.images.length) return r.images.filter(Boolean);
+  return r?.imageUrl ? [r.imageUrl] : [];
+}

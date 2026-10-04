@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
+import { useI18n } from '../i18n.jsx';
 
 export default function Modal({ title, onClose, children, wide }) {
+  const { t } = useI18n();
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
     document.addEventListener('keydown', onKey);
@@ -16,7 +18,7 @@ export default function Modal({ title, onClose, children, wide }) {
       <div className={`modal ${wide ? 'wide' : ''}`} role="dialog" aria-modal="true">
         <div className="modal-head">
           <h2>{title}</h2>
-          <button className="icon-btn" onClick={onClose} aria-label="Закрыть">✕</button>
+          <button className="icon-btn" onClick={onClose} aria-label={t('close')}>✕</button>
         </div>
         <div className="modal-body">{children}</div>
       </div>

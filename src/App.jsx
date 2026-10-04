@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { collection, doc, onSnapshot } from 'firebase/firestore';
 import { db, configured } from './firebase.js';
-import { DEFAULT_LOGO, DEFAULT_SETTINGS, driveUrl } from './utils.js';
-import { MenuIcon, SunIcon, MoonIcon } from './components/Icons.jsx';
+import { DEFAULT_LOGO, DEFAULT_SETTINGS, driveUrl, getImages } from './utils.js';
+import { useI18n } from './i18n.jsx';
+import { MenuIcon, SunIcon, MoonIcon, FilterIcon } from './components/Icons.jsx';
+import LanguageModal from './components/LanguageModal.jsx';
+import FilterPicker from './components/FilterPicker.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import SettingsModal from './components/SettingsModal.jsx';
 import GroupForm from './components/GroupForm.jsx';
@@ -26,6 +29,7 @@ function useTheme() {
 }
 
 export default function App() {
+  const { t } = useI18n();
   const [theme, setTheme] = useTheme();
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [groups, setGroups] = useState([]);
@@ -80,7 +84,7 @@ export default function App() {
   }, [recipes, activeGroup, activeFilters, search]);
 
   const toggleFilter = (id) => setActiveFilters((a) => (a.includes(id) ? a.filter((x) => x !== id) : [...a, id]));
-  const groupName = activeGroup === 'all' ? 'Все рецепты' : groups.find((g) => g.id === activeGroup)?.name || '';
+  const groupName = activeGroup === 'all' ? t('allRecipes') : groups.find((g) => g.id === activeGroup)?.name || '';
 
   if (!configured) {
     return (
@@ -96,12 +100,12 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <button className="icon-btn big" onClick={() => setMenu(true)} aria-label="Открыть меню"><MenuIcon /></button>
+        <button className="icon-btn big" onClick={() => setMenu(true)} aria-label={t('openMenu')}><MenuIcon /></button>
         <div className="brand">
           <img src={logo} alt="" className="logo" onError={(e) => (e.currentTarget.src = DEFAULT_LOGO)} />
           <span className="brand-name">{settings.siteName}</span>
         </div>
-        <button className="icon-btn big" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label="Сменить тему">
+        <button className="icon-btn big" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} aria-label={t('toggleTheme')}>
           {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
         </button>
       </header>
@@ -110,33 +114,40 @@ export default function App() {
         open={menu} onClose={() => setMenu(false)} groups={groups} recipes={recipes}
         activeGroup={activeGroup} setActiveGroup={setActiveGroup}
         onAddGroup={() => withFB('group')} onEditGroup={(g) => withFB('group', g)}
-        onAddRecipe={() => withFB('recipe')} onFilters={() => withFB('filters')} onSettings={() => withFB('settings')}
+        onAddRecipe={() => withFB('recipe')} onFilters={() => withFB('filters')} onSettings={() => withFB('settings')} onLanguage={() => withFB('language')}
       />
 
       <main className="content">
         <div className="page-head">
           <h1>{groupName}</h1>
-          <span className="muted">{visible.length} шт.</span>
+          <span className="muted">{visible.length} {t('pcs')}</span>
         </div>
 
-        <input className="search" type="search" placeholder="Поиск по названию" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <div className="toolbar">
+          <input className="search" type="search" placeholder={t('search')} value={search} onChange={(e) => setSearch(e.target.value)} />
+          <button className={`btn filter-btn ${activeFilters.length ? 'primary' : ''}`} onClick={() => withFB('picker')}>
+            <FilterIcon /> <span className="filter-label">{t('filters')}</span>
+            {activeFilters.length > 0 && <span className="count">{activeFilters.length}</span>}
+          </button>
+        </div>
 
-        {filters.length > 0 && (
-          <div className="chips scroll">
-            {activeFilters.length > 0 && <button className="chip clear" onClick={() => setActiveFilters([])}>Сбросить</button>}
-            {filters.map((f) => (
-              <button key={f.id} className={`chip ${activeFilters.includes(f.id) ? 'on' : ''}`} onClick={() => toggleFilter(f.id)}>{f.name}</button>
-            ))}
+        {activeFilters.length > 0 && (
+          <div className="chips">
+            {activeFilters.map((id) => {
+              const f = filters.find((x) => x.id === id);
+              return f ? <button key={id} className="chip on" onClick={() => toggleFilter(id)}>{f.name} ✕</button> : null;
+            })}
+            <button className="chip clear" onClick={() => setActiveFilters([])}>{t('reset')}</button>
           </div>
         )}
 
-        {fbError && <p className="error box">Ошибка Firebase: {fbError}. Проверьте ключи в .env и правила Firestore.</p>}
-        {loading && <p className="muted center">Загрузка…</p>}
+        {fbError && <p className="error box">{t('fbError')}: {fbError}. {t('fbErrorHint')}</p>}
+        {loading && <p className="muted center">{t('loading')}</p>}
 
         {!loading && visible.length === 0 && (
           <div className="empty">
-            <p>{recipes.length === 0 ? 'Здесь пока пусто. Добавьте первый рецепт.' : 'Ничего не найдено по этим условиям.'}</p>
-            <button className="btn primary" onClick={() => withFB('recipe')}>+ Новый рецепт</button>
+            <p>{recipes.length === 0 ? t('emptyNone') : t('emptyNotFound')}</p>
+            <button className="btn primary" onClick={() => withFB('recipe')}>{t('newRecipe')}</button>
           </div>
         )}
 
@@ -144,9 +155,10 @@ export default function App() {
           {visible.map((r) => (
             <button key={r.id} className="card" onClick={() => withFB('view', r)}>
               <div className="card-img">
-                {r.imageUrl
-                  ? <img src={driveUrl(r.imageUrl)} alt="" loading="lazy" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                {getImages(r)[0]
+                  ? <img src={driveUrl(getImages(r)[0])} alt="" loading="lazy" onError={(e) => (e.currentTarget.style.display = 'none')} />
                   : <span className="no-img">🍰</span>}
+                {getImages(r).length > 1 && <span className="photo-count">▣ {getImages(r).length}</span>}
               </div>
               <div className="card-body">
                 <h3>{r.title}</h3>
@@ -157,7 +169,7 @@ export default function App() {
         </div>
       </main>
 
-      <button className="fab" onClick={() => withFB('recipe')} aria-label="Добавить рецепт">+</button>
+      <button className="fab" onClick={() => withFB('recipe')} aria-label={t('addRecipe')}>+</button>
 
       {modal?.type === 'view' && (
         <RecipeView recipe={recipes.find((r) => r.id === modal.data.id) || modal.data} groups={groups} filters={filters}
@@ -168,6 +180,11 @@ export default function App() {
       )}
       {modal?.type === 'group' && (
         <GroupForm group={modal.data} recipes={recipes} onClose={close} onSaved={(id) => id && setActiveGroup(id)} />
+      )}
+      {modal?.type === 'language' && <LanguageModal onClose={close} />}
+      {modal?.type === 'picker' && (
+        <FilterPicker filters={filters} recipes={recipes} selected={activeFilters} setSelected={setActiveFilters}
+          matchCount={visible.length} onManage={() => withFB('filters')} onClose={close} />
       )}
       {modal?.type === 'filters' && <FilterManager filters={filters} recipes={recipes} onClose={close} />}
       {modal?.type === 'settings' && <SettingsModal settings={settings} theme={theme} setTheme={setTheme} onClose={close} />}

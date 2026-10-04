@@ -4,6 +4,7 @@ import { db } from '../firebase.js';
 import { DEFAULT_SETTINGS, DEFAULT_LOGO, driveUrl } from '../utils.js';
 import { SunIcon, MoonIcon } from './Icons.jsx';
 import Modal from './Modal.jsx';
+import { useI18n } from '../i18n.jsx';
 
 const PALETTES = [
   { name: 'Осень', primary: '#b5541f', accent: '#7a1f2b' },
@@ -15,6 +16,7 @@ const PALETTES = [
 ];
 
 export default function SettingsModal({ settings, theme, setTheme, onClose }) {
+  const { t } = useI18n();
   const [form, setForm] = useState({ ...DEFAULT_SETTINGS, ...settings });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -46,7 +48,7 @@ export default function SettingsModal({ settings, theme, setTheme, onClose }) {
       }, { merge: true });
       onClose();
     } catch (err) {
-      setError('Не удалось сохранить: ' + err.message);
+      setError(t('saveFail') + ': ' + err.message);
       setBusy(false);
     }
   };
@@ -54,28 +56,28 @@ export default function SettingsModal({ settings, theme, setTheme, onClose }) {
   const reset = () => setForm({ ...DEFAULT_SETTINGS });
 
   return (
-    <Modal title="Настройки" onClose={onClose} wide>
+    <Modal title={t('settings')} onClose={onClose} wide>
       <div className="field">
-        <span className="label">Тема сайта (хранится на этом устройстве)</span>
+        <span className="label">{t('theme')}</span>
         <div className="theme-switch">
-          <button type="button" className={`theme-btn ${theme === 'light' ? 'on' : ''}`} onClick={() => setTheme('light')} aria-label="Светлая тема"><SunIcon /> Светлая</button>
-          <button type="button" className={`theme-btn ${theme === 'dark' ? 'on' : ''}`} onClick={() => setTheme('dark')} aria-label="Тёмная тема"><MoonIcon /> Тёмная</button>
+          <button type="button" className={`theme-btn ${theme === 'light' ? 'on' : ''}`} onClick={() => setTheme('light')} aria-label={t('light')}><SunIcon /> {t('light')}</button>
+          <button type="button" className={`theme-btn ${theme === 'dark' ? 'on' : ''}`} onClick={() => setTheme('dark')} aria-label={t('dark')}><MoonIcon /> {t('dark')}</button>
         </div>
       </div>
 
       <form onSubmit={save} className="form">
-        <label>Название сайта
+        <label>{t('siteName')}
           <input value={form.siteName} onChange={set('siteName')} />
         </label>
 
-        <label>Ссылка на логотип (Google Диск)
+        <label>{t('logoLink')}
           <input value={form.logoUrl} onChange={set('logoUrl')} placeholder="https://drive.google.com/file/d/…/view" />
         </label>
         <img className="logo-preview" src={driveUrl(form.logoUrl) || DEFAULT_LOGO} alt="Логотип" onError={(e) => (e.currentTarget.src = DEFAULT_LOGO)} />
-        <p className="hint">Файл на Диске: «Поделиться» → «Все, у кого есть ссылка». Пустое поле — логотип по умолчанию.</p>
+        <p className="hint">{t('logoHint')}</p>
 
         <div className="field">
-          <span className="label">Готовые палитры</span>
+          <span className="label">{t('palettes')}</span>
           <div className="palettes">
             {PALETTES.map((p) => (
               <button type="button" key={p.name} className="palette" title={p.name}
@@ -87,22 +89,22 @@ export default function SettingsModal({ settings, theme, setTheme, onClose }) {
         </div>
 
         <div className="two">
-          <label>Основной цвет
+          <label>{t('primary')}
             <input type="color" value={form.primary} onChange={set('primary')} />
           </label>
-          <label>Дополнительный цвет
+          <label>{t('accent')}
             <input type="color" value={form.accent} onChange={set('accent')} />
           </label>
         </div>
 
-        <label>Валюта
+        <label>{t('currency')}
           <input value={form.currency} onChange={set('currency')} maxLength={4} />
         </label>
 
         {error && <p className="error">{error}</p>}
         <div className="form-actions">
-          <button type="button" className="btn" onClick={reset}>Сбросить</button>
-          <button className="btn primary" disabled={busy}>{busy ? 'Сохранение…' : 'Сохранить настройки'}</button>
+          <button type="button" className="btn" onClick={reset}>{t('reset')}</button>
+          <button className="btn primary" disabled={busy}>{busy ? t('saving') : t('saveSettings')}</button>
         </div>
       </form>
     </Modal>
